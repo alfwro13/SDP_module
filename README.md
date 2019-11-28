@@ -8,3 +8,5 @@ Available functions:
 Get-Ticket
 
 Resolve-Ticket
+
+Add-NoteToTicket
