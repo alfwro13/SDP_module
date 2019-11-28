@@ -134,6 +134,18 @@ param (
 #
 
 function Convert-HtmlToText {
+<#
+.DESCRIPTION
+    Converts html output to plain text.
+.PARAMETER html
+    HTML output
+.EXAMPLE
+    Convert-HtmlToText $html_output
+.NOTES
+    Author http://winstonfassett.com/blog/2010/09/21/html-to-text-conversion-in-powershell/
+#>
+
+
  param([System.String] $html)
 
  # remove line breaks, replace with spaces
