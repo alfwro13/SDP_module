@@ -2,7 +2,7 @@ $ApiKey = "Here goes your API key"
 $SdpUri = "https://Your Server URL" 
 
 # Gets information on an existing request
-function Get-Request
+function Get-Ticket
 {
 [CmdletBinding()]
 param
@@ -58,7 +58,55 @@ $displayNotes = read-host "Display Notes? (Y/N)"
 	}
 }
 
+#
+#Adds resolution and closes ticket
+#
+function Resolve-Ticket {
+<#
+.DESCRIPTION
+    Used to add resolution and close ticket.
+.PARAMETER RequestID
+    Request ID of the ticket to modify
+.PARAMETER Resolution
+    Ticket resolution
+.PARAMETER Status
+    Change status of the ticket to Resolved or Closed. Alternatively leave it open.
+.EXAMPLE
+    Resolve-Ticket -RequestID 12345 -Resolution "Issue resolved" -Status "Closed"
+.NOTES
+    Forked from https://github.com/GarySmithPS/SDP-Module
+#>
+[CmdletBinding()]
+param (
+	[Parameter(Mandatory=$true, ValueFromPipelineByPropertyName=$true, Position=0)] 
+	[alias ("id")]
+	[Int32] $RequestID,
+	[Parameter(Mandatory = $true, Position=1)]
+    [string]$Resolution,
+    [Parameter(Mandatory = $true, Position=2)]
+    [ValidateSet("Open", "Resolved", "Closed")]
+    [string]$Status
+)
 
+   
+    process {
+        $inputData = @"
+{
+    "request": {
+        "resolution": {
+            "content": "$Resolution"
+        },
+        "status": {
+            "name": "$Status"
+        }
+    }
+}
+"@
+        $URI = $SdpUri + "/api/v3/requests/$RequestID" + "?TECHNICIAN_KEY=$ApiKey&input_data=$inputdata&format=json"
+        Invoke-WebRequest -Method PUT -Uri $URI -UseBasicParsing -Verbose
+    }
+    
+}
 
 #
 #
