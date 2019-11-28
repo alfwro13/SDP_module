@@ -1,9 +1,20 @@
 $ApiKey = "Here goes your API key" 
 $SdpUri = "https://Your Server URL" 
 
-# Gets information on an existing request
+# Pulls info about an existing request
 function Get-Ticket
 {
+<#
+.DESCRIPTION
+    Pulls ticket info from Service Desk Plus.
+.PARAMETER RequestID
+    Request ID of the ticket to modify
+.EXAMPLE
+    Get-Ticket -RequestID 12345
+.NOTES
+    Author: Andre Wroblewski
+	Date: 28-November-2019
+#>
 [CmdletBinding()]
 param
 (
@@ -27,40 +38,45 @@ $header = @{TECHNICIAN_KEY=$ApiKey}
 $params = @{input_data=$input;format='json'}
 $Uri = $SdpUri + "/api/v3/requests/" + $RequestID
 $result = Invoke-RestMethod -Method Get -Uri $Uri -Headers $header 
+
+$description = (Convert-HtmlToText $result.request.description).Replace("&nbsp;", " ")
+clear
+write-host "Subject:" $result.request.subject
+"----------------------------------------------------------------"
+write-host "Technician:" $result.request.technician.name
+write-host "Has conversation:" $result.request.has_conversation
+write-host "Responded time:" $result.request.responded_time.display_value
+write-host "status:" $result.request.status.name
+write-host "Has notes:" $result.request.has_notes 
+Out-Notepad "Ticket Description: `n $description"
+#Display Notes if any
 if ($result.request.has_notes -eq "True") {
+#
+# To DO - test on a ticket with multiple notes
+#
 	#Lookup Note IDs
 	$UriNotesID = $SdpUri + "/api/v3/requests/" + $RequestID + "/notes"
 	$resultNotesID = Invoke-RestMethod -Method Get -Uri $UriNotesID -Headers $header
 	#Get Notes
 	$UriNotes = $SdpUri + "/api/v3/requests/" + $RequestID + "/notes/" + $resultNotesID.notes.id
 	$resultNotes = Invoke-RestMethod -Method Get -Uri $UriNotes -Headers $header 
+	#Display Note
+	$note = Convert-HtmlToText $resultNotes.request_note.description
+	write-host "........ Opening Notepad Window"
+	out-notepad "Ticket Notes: `n $note"
 	}
-	
-
-$description = (Convert-HtmlToText $result.request.description).Replace("&nbsp;", " ")
-clear
-write-host "Subject:" $result.request.subject -BackgroundColor yellow -ForegroundColor Black
-"----------------------------------------------------------------"
-write-host "Description:"
-out-notepad $description
-"----------------------------------------------------------------"
-write-host "Technician:" $result.request.technician.name
-write-host "Has notes:" $result.request.has_notes
-write-host "Has conversation:" $result.request.has_conversation
-write-host "Responded time:" $result.request.responded_time.display_value
-write-host "status:" $result.request.status.name
-
-#Display Notes
-$displayNotes = read-host "Display Notes? (Y/N)"
-	if ($DisplayNotes -eq "Y") { 
-		$note = Convert-HtmlToText $resultNotes.request_note.description
-		out-notepad $note
+#Display Resolution if any
+if (($result.request.resolution.content).count -ne 0)	{
+$UriResolution = $SdpUri + "/api/v3/requests/" + $RequestID + "/resolutions"
+$resultResolution = Invoke-RestMethod -Method Get -Uri $UriResolution -Headers $header
+	#Display Resolution
+	$Resolution = Convert-HtmlToText $resultResolution.resolution.content
+	write-host "Resolution ........ Opening Notepad Window."
+	Out-Notepad "Resolution: `n $Resolution"
 	}
 }
 
-#
 #Adds resolution and closes ticket
-#
 function Resolve-Ticket {
 <#
 .DESCRIPTION
@@ -107,6 +123,7 @@ param (
     }
     
 }
+
 
 #
 #
