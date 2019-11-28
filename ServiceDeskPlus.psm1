@@ -124,6 +124,51 @@ param (
     
 }
 
+#Adds note to a ticket
+Function Add-NoteToTicket
+{
+<#
+.DESCRIPTION
+    Adds note to existing ticket.
+.PARAMETER RequestID
+    Request ID of the ticket to modify
+.PARAMETER Note
+    Text of the note that you want to add
+.EXAMPLE
+    Add-NoteToTicket -RequestID 12345 -Note "This is a note"
+.NOTES
+    Author: Andre Wroblewski
+	Date: 28-November-2019
+#>
+[CmdletBinding()]
+param (
+	[Parameter(Mandatory=$true, ValueFromPipelineByPropertyName=$true, Position=0)] 
+	[alias ("id")]
+	[Int32] $RequestID,
+	[Parameter(Mandatory = $true, Position=1)]
+    [string] $Note
+)
+
+   
+$inputData = @"
+{
+"request_note": {
+"description": "$Note",
+"show_to_requester": false,
+"notify_technician": false,
+"mark_first_response": false,
+"add_to_linked_requests": false
+}
+}
+"@
+
+$header = @{TECHNICIAN_KEY=$ApiKey} 
+$params = @{input_data=$inputData;format='json'}
+$Uri = $SdpUri + "/api/v3/requests/$RequestID" + "/notes"
+
+Invoke-RestMethod -Method POST -Uri $Uri -Headers $header -Body $params -ContentType "application/x-www-form-urlencoded" -verbose
+
+}
 
 #
 #
