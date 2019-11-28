@@ -5,4 +5,5 @@ This is my attempt to to create powershell module for Service Desk Plus: https:/
 
 Available functions:
 
-Get-Request
+Get-Ticket
+Resolve-Ticket
