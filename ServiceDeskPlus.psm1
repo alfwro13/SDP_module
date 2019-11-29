@@ -1,5 +1,5 @@
-$ApiKey = "Here goes your API key" 
-$SdpUri = "https://Your Server URL" 
+$ApiKey = get-content .\sdp_apikey.txt
+$SdpUri = get-content .\sdp_server.txt
 
 # Pulls info about an existing request
 function Get-Ticket
@@ -13,12 +13,12 @@ function Get-Ticket
     Get-Ticket -RequestID 12345
 .NOTES
     Author: Andre Wroblewski
-	Date: 28-November-2019
+	  Date: 28-November-2019
 #>
 [CmdletBinding()]
 param
 (
-[Parameter(Mandatory=$true, ValueFromPipelineByPropertyName=$true, Position=0)] 
+[Parameter(Mandatory=$true, ValueFromPipelineByPropertyName=$true, Position=0)]
 [alias ("id")]
 [Int32] $RequestID
 )
@@ -29,15 +29,15 @@ $input= @"
 "udf_fields":{
 "udf_sline_18083": "$RequestFor"
 }
-} 
+}
 }
 "@
 
 
-$header = @{TECHNICIAN_KEY=$ApiKey} 
+$header = @{TECHNICIAN_KEY=$ApiKey}
 $params = @{input_data=$input;format='json'}
 $Uri = $SdpUri + "/api/v3/requests/" + $RequestID
-$result = Invoke-RestMethod -Method Get -Uri $Uri -Headers $header 
+$result = Invoke-RestMethod -Method Get -Uri $Uri -Headers $header
 
 $description = (Convert-HtmlToText $result.request.description).Replace("&nbsp;", " ")
 clear
@@ -47,7 +47,7 @@ write-host "Technician:" $result.request.technician.name
 write-host "Has conversation:" $result.request.has_conversation
 write-host "Responded time:" $result.request.responded_time.display_value
 write-host "status:" $result.request.status.name
-write-host "Has notes:" $result.request.has_notes 
+write-host "Has notes:" $result.request.has_notes
 Out-Notepad "Ticket Description: `n $description"
 #Display Notes if any
 if ($result.request.has_notes -eq "True") {
@@ -57,7 +57,7 @@ if ($result.request.has_notes -eq "True") {
 	#Get Notes
 	foreach ($id_note in $resultNotesID.notes.id) {
 		$UriNotes = $SdpUri + "/api/v3/requests/" + $RequestID + "/notes/" + $id_note
-		$resultNotes = Invoke-RestMethod -Method Get -Uri $UriNotes -Headers $header 
+		$resultNotes = Invoke-RestMethod -Method Get -Uri $UriNotes -Headers $header
 		#Display Note
 		$date = $resultNotes.request_note.created_time.display_value
 		$note = Convert-HtmlToText $resultNotes.request_note.description
@@ -78,8 +78,10 @@ $resultResolution = Invoke-RestMethod -Method Get -Uri $UriResolution -Headers $
 	}
 }
 
+
 #Adds resolution and closes ticket
-function Resolve-Ticket {
+function Resolve-Ticket
+{
 <#
 .DESCRIPTION
     Used to add resolution and close ticket.
@@ -96,7 +98,7 @@ function Resolve-Ticket {
 #>
 [CmdletBinding()]
 param (
-	[Parameter(Mandatory=$true, ValueFromPipelineByPropertyName=$true, Position=0)] 
+	[Parameter(Mandatory=$true, ValueFromPipelineByPropertyName=$true, Position=0)]
 	[alias ("id")]
 	[Int32] $RequestID,
 	[Parameter(Mandatory = $true, Position=1)]
@@ -106,7 +108,7 @@ param (
     [string]$Status
 )
 
-   
+
     process {
         $inputData = @"
 {
@@ -123,7 +125,7 @@ param (
         $URI = $SdpUri + "/api/v3/requests/$RequestID" + "?TECHNICIAN_KEY=$ApiKey&input_data=$inputdata&format=json"
         Invoke-WebRequest -Method PUT -Uri $URI -UseBasicParsing -Verbose
     }
-    
+
 }
 
 #Adds note to a ticket
@@ -144,14 +146,12 @@ Function Add-NoteToTicket
 #>
 [CmdletBinding()]
 param (
-	[Parameter(Mandatory=$true, ValueFromPipelineByPropertyName=$true, Position=0)] 
+	[Parameter(Mandatory=$true, ValueFromPipelineByPropertyName=$true, Position=0)]
 	[alias ("id")]
 	[Int32] $RequestID,
 	[Parameter(Mandatory = $true, Position=1)]
     [string] $Note
 )
-
-   
 $inputData = @"
 {
 "request_note": {
@@ -163,24 +163,23 @@ $inputData = @"
 }
 }
 "@
-
-$header = @{TECHNICIAN_KEY=$ApiKey} 
+$header = @{TECHNICIAN_KEY=$ApiKey}
 $params = @{input_data=$inputData;format='json'}
 $Uri = $SdpUri + "/api/v3/requests/$RequestID" + "/notes"
 
 Invoke-RestMethod -Method POST -Uri $Uri -Headers $header -Body $params -ContentType "application/x-www-form-urlencoded" -verbose
-
 }
 
-#
+##################################
 #
 #
 # Support functions
 #
 #
-#
+#################################
 
-function Convert-HtmlToText {
+function Convert-HtmlToText
+{
 <#
 .DESCRIPTION
     Converts html output to plain text.
@@ -191,70 +190,64 @@ function Convert-HtmlToText {
 .NOTES
     Author http://winstonfassett.com/blog/2010/09/21/html-to-text-conversion-in-powershell/
 #>
+param([System.String] $html)
+# remove line breaks, replace with spaces
+$html = $html -replace "(`r|`n|`t)", " "
+# write-verbose "removed line breaks: `n`n$html`n"
+# remove invisible content
+@('head', 'style', 'script', 'object', 'embed', 'applet', 'noframes', 'noscript', 'noembed') | % {
+$html = $html -replace "<$_[^>]*?>.*?</$_>", ""
+}
+# write-verbose "removed invisible blocks: `n`n$html`n"
 
+# Condense extra whitespace
+$html = $html -replace "( )+", " "
+# write-verbose "condensed whitespace: `n`n$html`n"
 
- param([System.String] $html)
+# Add line breaks
+@('div','p','blockquote','h[1-9]') | % { $html = $html -replace "</?$_[^>]*?>.*?</$_>", ("`n" + '$0' )}
+# Add line breaks for self-closing tags
+@('div','p','blockquote','h[1-9]','br') | % { $html = $html -replace "<$_[^>]*?/>", ('$0' + "`n")}
+# write-verbose "added line breaks: `n`n$html`n"
 
- # remove line breaks, replace with spaces
- $html = $html -replace "(`r|`n|`t)", " "
- # write-verbose "removed line breaks: `n`n$html`n"
+#strip tags
+$html = $html -replace "<[^>]*?>", ""
+# write-verbose "removed tags: `n`n$html`n"
 
- # remove invisible content
- @('head', 'style', 'script', 'object', 'embed', 'applet', 'noframes', 'noscript', 'noembed') | % {
-  $html = $html -replace "<$_[^>]*?>.*?</$_>", ""
- }
- # write-verbose "removed invisible blocks: `n`n$html`n"
+# replace common entities
+@(
+@("&amp;bull;", " * "),
+@("&amp;lsaquo;", "<"),
+@("&amp;rsaquo;", ">"),
+@("&amp;(rsquo|lsquo);", "'"),
+@("&amp;(quot|ldquo|rdquo);", '"'),
+@("&amp;trade;", "(tm)"),
+@("&amp;frasl;", "/"),
+@("&amp;(quot|#34|#034|#x22);", '"'),
+@('&amp;(amp|#38|#038|#x26);', "&amp;"),
+@("&amp;(lt|#60|#060|#x3c);", "<"),
+@("&amp;(gt|#62|#062|#x3e);", ">"),
+@('&amp;(copy|#169);', "(c)"),
+@("&amp;(reg|#174);", "(r)"),
+@("&amp;nbsp;", " "),
+@("&amp;(.{2,6});", "")
+) | % { $html = $html -replace $_[0], $_[1] }
+# write-verbose "replaced entities: `n`n$html`n"
 
- # Condense extra whitespace
- $html = $html -replace "( )+", " "
- # write-verbose "condensed whitespace: `n`n$html`n"
-
- # Add line breaks
- @('div','p','blockquote','h[1-9]') | % { $html = $html -replace "</?$_[^>]*?>.*?</$_>", ("`n" + '$0' )} 
- # Add line breaks for self-closing tags
- @('div','p','blockquote','h[1-9]','br') | % { $html = $html -replace "<$_[^>]*?/>", ('$0' + "`n")} 
- # write-verbose "added line breaks: `n`n$html`n"
-
- #strip tags 
- $html = $html -replace "<[^>]*?>", ""
- # write-verbose "removed tags: `n`n$html`n"
-  
- # replace common entities
- @( 
-  @("&amp;bull;", " * "),
-  @("&amp;lsaquo;", "<"),
-  @("&amp;rsaquo;", ">"),
-  @("&amp;(rsquo|lsquo);", "'"),
-  @("&amp;(quot|ldquo|rdquo);", '"'),
-  @("&amp;trade;", "(tm)"),
-  @("&amp;frasl;", "/"),
-  @("&amp;(quot|#34|#034|#x22);", '"'),
-  @('&amp;(amp|#38|#038|#x26);', "&amp;"),
-  @("&amp;(lt|#60|#060|#x3c);", "<"),
-  @("&amp;(gt|#62|#062|#x3e);", ">"),
-  @('&amp;(copy|#169);', "(c)"),
-  @("&amp;(reg|#174);", "(r)"),
-  @("&amp;nbsp;", " "),
-  @("&amp;(.{2,6});", "")
- ) | % { $html = $html -replace $_[0], $_[1] }
- # write-verbose "replaced entities: `n`n$html`n"
-
- return $html
-
+return $html
 }
 
 
-
-Function Out-Notepad {
- [CmdletBinding()]
-    Param
-      (  
+Function Out-Notepad
+{
+[CmdletBinding()]
+Param (
         [Parameter(Mandatory=$true,
         ValueFromPipeline=$true,
         Position=0)]
         $StrText
        )
-  
+
 $fso=new-object -com scripting.filesystemobject
 $filename=$fso.GetTempName()
 $tempfile=Join-Path $env:temp $filename
