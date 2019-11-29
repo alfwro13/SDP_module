@@ -1,5 +1,5 @@
-$ApiKey = get-content .\sdp_apikey.txt
-$SdpUri = get-content .\sdp_server.txt
+$ApiKey = get-content .\config\sdp_apikey.txt
+$SdpUri = get-content .\config\sdp_server.txt
 
 # Pulls info about an existing request
 function Get-Ticket
