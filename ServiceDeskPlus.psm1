@@ -51,19 +51,21 @@ write-host "Has notes:" $result.request.has_notes
 Out-Notepad "Ticket Description: `n $description"
 #Display Notes if any
 if ($result.request.has_notes -eq "True") {
-#
-# To DO - test on a ticket with multiple notes
-#
 	#Lookup Note IDs
 	$UriNotesID = $SdpUri + "/api/v3/requests/" + $RequestID + "/notes"
 	$resultNotesID = Invoke-RestMethod -Method Get -Uri $UriNotesID -Headers $header
 	#Get Notes
-	$UriNotes = $SdpUri + "/api/v3/requests/" + $RequestID + "/notes/" + $resultNotesID.notes.id
-	$resultNotes = Invoke-RestMethod -Method Get -Uri $UriNotes -Headers $header 
-	#Display Note
-	$note = Convert-HtmlToText $resultNotes.request_note.description
-	write-host "........ Opening Notepad Window"
-	out-notepad "Ticket Notes: `n $note"
+	foreach ($id_note in $resultNotesID.notes.id) {
+		$UriNotes = $SdpUri + "/api/v3/requests/" + $RequestID + "/notes/" + $id_note
+		$resultNotes = Invoke-RestMethod -Method Get -Uri $UriNotes -Headers $header 
+		#Display Note
+		$date = $resultNotes.request_note.created_time.display_value
+		$note = Convert-HtmlToText $resultNotes.request_note.description
+		write-host "Note $id_note ........ Opening Notepad Window"
+		$note1 = "Note ID: $id_note `n Date Created $date `n `n $note `n `n"
+		$output += $note1
+		}
+		out-notepad "Ticket Notes: `n `n $output"
 	}
 #Display Resolution if any
 if (($result.request.resolution.content).count -ne 0)	{
@@ -260,6 +262,6 @@ $tempfile=Join-Path $env:temp $filename
 $strText | Out-File $tempfile
 notepad $tempfile
 #tidy up
-sleep 3
+sleep 2
 if (Test-Path $tempfile) {del $tempfile}
 }
